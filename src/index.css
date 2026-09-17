@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  /* Aionion Capital brand tokens — royal blue + coral, lifted from the logo */
+  --color-brand-blue-50: #eef1ff;
+  --color-brand-blue-100: #dde3ff;
+  --color-brand-blue-200: #b8c2ff;
+  --color-brand-blue-300: #8b9aff;
+  --color-brand-blue-400: #5a6bf5;
+  --color-brand-blue-500: #2f3ee8;
+  --color-brand-blue-600: #1c28d6;
+  --color-brand-blue-700: #171fab;
+  --color-brand-blue-800: #141c85;
+  --color-brand-blue-900: #121a66;
+
+  --color-brand-coral-50: #fff1f3;
+  --color-brand-coral-100: #ffe0e5;
+  --color-brand-coral-200: #ffc2cc;
+  --color-brand-coral-300: #ff98a9;
+  --color-brand-coral-400: #fb6b83;
+  --color-brand-coral-500: #f0405f;
+  --color-brand-coral-600: #d92a4c;
+  --color-brand-coral-700: #b31f3e;
+  --color-brand-coral-800: #8f1c37;
+  --color-brand-coral-900: #781a32;
+
+  --animate-blob: blob 14s infinite ease-in-out;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+@keyframes blob {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  25% {
+    transform: translate(30px, -40px) scale(1.08);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.94);
+  }
+  75% {
+    transform: translate(-30px, -20px) scale(1.05);
+  }
+}
+
+.animate-blob {
+  animation: var(--animate-blob);
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
