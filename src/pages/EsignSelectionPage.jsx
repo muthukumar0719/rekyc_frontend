@@ -12,7 +12,7 @@ export default function EsignSelectionPage() {
   const { clientId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { account, updateAccount } = useAuth();
+  const { updateAccount } = useAuth();
 
   const operationId = searchParams.get('operation_id');
   const [requirements, setRequirements] = useState([]);
@@ -20,10 +20,6 @@ export default function EsignSelectionPage() {
   const [error, setError] = useState(null);
   const [signingForm, setSigningForm] = useState(null);
   const [previewUrls, setPreviewUrls] = useState({});
-  const [redirectSeconds, setRedirectSeconds] = useState(8);
-
-  const allSigned = requirements.length > 0 && requirements.every((r) => r.status === 'sign_complete');
-  const EXTERNAL_REDIRECT_URL = 'https://www.aionioncapital.com/';
 
   // Keeps the shared account (gating flags like Personal's DigiLocker gate,
   // operation status, pending changes) in sync with this operation's e-Sign
@@ -186,34 +182,6 @@ export default function EsignSelectionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requirements]);
 
-  // Once every requirement on THIS operation is signed, decide whether the
-  // whole Re-KYC request is actually done. The server only ever advances the
-  // operation to PENDING_VERIFICATION once there's truly nothing left to sign
-  // (see esignController.finalizeSignedForm) — a standalone Bank/Nominee/DDPI
-  // section reopens the operation (IN_PROGRESS) instead, so more sections
-  // (e.g. Nominee right after Bank) stay reachable. So: fully done -> show the
-  // success screen and hand off to the marketing site; not done yet -> just
-  // return to Account Details, where the next unlocked step is now clickable.
-  const operationFinalized = account?.operationStatus === 'PENDING_VERIFICATION' || account?.operationStatus === 'COMPLETED';
-  useEffect(() => {
-    if (!allSigned) return;
-    if (!operationFinalized) {
-      navigate('/account');
-      return;
-    }
-    setRedirectSeconds(8);
-    const tick = setInterval(() => {
-      setRedirectSeconds((s) => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    const redirect = setTimeout(() => {
-      window.location.href = EXTERNAL_REDIRECT_URL;
-    }, 8000);
-    return () => {
-      clearInterval(tick);
-      clearTimeout(redirect);
-    };
-  }, [allSigned, operationFinalized, navigate]);
-
   const handleDownload = async (formType) => {
     try {
       const res = await api.get(`/client/${clientId}/esign/${formType}/signed-pdf?operation_id=${operationId}`);
@@ -225,42 +193,6 @@ export default function EsignSelectionPage() {
 
   if (!operationId) {
     return <div className="p-8">Missing operation_id in URL</div>;
-  }
-
-  if (allSigned) {
-    return (
-      <PageShell contentClassName="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="max-w-lg w-full text-center">
-          <img src={aionionLogo} alt="Aionion Capital" className="h-16 md:h-20 object-contain drop-shadow-sm mx-auto mb-6" />
-
-          <h1
-            className="text-6xl sm:text-7xl leading-tight mb-6"
-            style={{ fontFamily: "'Dancing Script', cursive" }}
-          >
-            <span className="text-brand-blue-600">Happy </span>
-            <span className="text-brand-coral-500">ReKYC..!</span>
-          </h1>
-
-          <Card className="p-8 border-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] text-left space-y-4">
-            <p className="font-bold text-slate-900 text-lg">Congratulations!</p>
-            <p className="text-slate-600">
-              Your ReKYC process has been completed successfully.
-            </p>
-            <p className="text-slate-600">
-              Your updated details will be processed and reflected within 2 working days.
-            </p>
-            <p className="text-slate-600">
-              You will receive a confirmation notification once your details are updated.
-            </p>
-            <p className="text-slate-600">Thank you for choosing us.</p>
-          </Card>
-
-          <p className="mt-6 text-sm text-slate-400">
-            Redirecting you to aionioncapital.com in {redirectSeconds}s…
-          </p>
-        </div>
-      </PageShell>
-    );
   }
 
   return (

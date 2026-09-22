@@ -8,7 +8,7 @@ import {
   validateSessionComplete,
   getDigilockerStatus,
 } from '../../services/api';
-import { CheckCircle, AlertCircle, RefreshCw, ArrowRight, ArrowLeft, Lock, Landmark, CreditCard, FileText, ShieldCheck, Calendar, User, MapPin, LogOut } from 'lucide-react';
+import { CheckCircle, AlertCircle, RefreshCw, ArrowRight, ArrowLeft, Lock, Landmark, CreditCard, FileText, ShieldCheck, Calendar, User, MapPin } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import SignaturePad from '../SignaturePad';
@@ -270,28 +270,10 @@ export default function DocumentWizard({ account, onProceed }) {
 
   if (!requirements) {
     return (
-      <Card className="p-6 md:p-10">
-        <div className="flex flex-col items-center text-center py-4">
-          <div className="relative w-20 h-20 mb-6">
-            <div className="w-20 h-20 rounded-full bg-brand-blue-50 flex items-center justify-center">
-              <FileText className="w-9 h-9 text-brand-blue-300" />
-            </div>
-            <div className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full bg-brand-blue-600 text-white flex items-center justify-center text-xs font-bold">
-              !
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900">No Changes Detected</h3>
-          <p className="text-slate-500 mt-3 max-w-md">You haven't made any changes to your account details.</p>
-          <p className="text-slate-500 mt-1 max-w-md">There are no documents to upload or submit.</p>
-          <p className="text-slate-500 mt-1 max-w-md">
-            If you do not wish to make any changes, please quit the Re-KYC process and return to your dashboard.
-          </p>
-        </div>
-        <div className="flex justify-end pt-6 mt-2 border-t border-slate-100">
-          <Button variant="danger" onClick={() => { window.location.href = 'https://www.aionioncapital.com/investor'; }}>
-            <LogOut size={16} /> Quit Re-KYC
-          </Button>
-        </div>
+      <Card className="p-8 text-center">
+        <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+        <h3 className="text-lg font-medium text-slate-800">No Documents Required</h3>
+        <p className="text-slate-500 mt-2">{error || 'There are no active modification requests that require document uploads.'}</p>
       </Card>
     );
   }

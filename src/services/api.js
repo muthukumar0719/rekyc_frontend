@@ -1,15 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-if (!API_BASE_URL) {
-  throw new Error(
-    'VITE_API_URL is not configured. Set it in frontend/.env.development for local dev, or as an Amplify environment variable in production.'
-  );
-}
-
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5090/api',
 });
 
 api.interceptors.request.use((config) => {

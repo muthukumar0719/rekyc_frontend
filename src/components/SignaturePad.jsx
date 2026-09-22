@@ -3,7 +3,7 @@ import { Eraser, CheckCircle, PenLine, Upload } from 'lucide-react';
 import { uploadManualDocument } from '../services/api';
 import Button from './ui/Button';
 
-export default function SignaturePad({ clientId, existingRecord, onUploaded, onView, onSave, allowUpload = true }) {
+export default function SignaturePad({ clientId, existingRecord, onUploaded, onView }) {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const drawing = useRef(false);
@@ -115,16 +115,8 @@ export default function SignaturePad({ clientId, existingRecord, onUploaded, onV
     }, 'image/png');
   };
 
-  // `onSave`, when provided, takes over where the signature goes (e.g. the
-  // DDPI e-sign flow stamps it straight onto that form's PDF) instead of the
-  // default generic document upload.
   const uploadSignature = async (file) => {
     try {
-      if (onSave) {
-        await onSave(file);
-        onUploaded?.(file);
-        return;
-      }
       const formData = new FormData();
       formData.append('documentType', 'SIGNATURE');
       formData.append('signatureSource', mode);
@@ -161,8 +153,7 @@ export default function SignaturePad({ clientId, existingRecord, onUploaded, onV
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* Mode toggle — only when an upload alternative is actually offered */}
-      {allowUpload && (
+      {/* Mode toggle */}
       <div className="flex gap-2 bg-slate-100 rounded-xl p-1">
         <button
           type="button"
@@ -183,7 +174,6 @@ export default function SignaturePad({ clientId, existingRecord, onUploaded, onV
           <Upload size={14} /> Upload Signature
         </button>
       </div>
-      )}
 
       {mode === 'draw' ? (
         <>

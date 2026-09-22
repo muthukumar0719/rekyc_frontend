@@ -36,9 +36,8 @@ export default function PersonalTab({ account, onNext }) {
     setSaving(true);
     setError('');
     try {
-      // Only recorded as a change request if it actually differs from the
-      // existing value — the backend no-ops otherwise, so operations that
-      // don't touch income (e.g. DDPI-only) don't get an income change forced in.
+      // Record the selected income even when it matches the existing value,
+      // so the personal-details PDF includes the client's declaration.
       if (!pendingChanges.annual_income) {
         const { data } = await requestFieldChange(clientId, 'annual_income', income);
         updateAccount(data.data);
