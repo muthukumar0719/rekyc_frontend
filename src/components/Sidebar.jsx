@@ -23,6 +23,7 @@ export default function Sidebar({ active, onSelect, completed = {}, canAccess = 
             const isActive = active === tab.id;
             const isCompleted = index <= activeIndex || !!completed[tab.id];
             const locked = !canAccess(tab.id);
+            const handleClick = () => onSelect(tab.id);
 
             return (
               <li
@@ -32,7 +33,7 @@ export default function Sidebar({ active, onSelect, completed = {}, canAccess = 
                 {/* Timeline Dot */}
                 <div
                   className="relative z-10 w-6 h-6 shrink-0 flex items-center justify-center bg-transparent"
-                  onClick={() => onSelect(tab.id)}
+                  onClick={handleClick}
                 >
                   <div className="absolute inset-0 bg-white rounded-full scale-110" />
                   {isActive && (
@@ -48,7 +49,7 @@ export default function Sidebar({ active, onSelect, completed = {}, canAccess = 
                 {/* Tab Button */}
                 <div className="ml-4 flex-1">
                   <button
-                    onClick={() => onSelect(tab.id)}
+                    onClick={handleClick}
                     className={`w-full flex items-center gap-3 px-5 py-3 rounded-r-3xl rounded-l-3xl text-[15px] font-semibold transition-all duration-300 ${
                       isActive
                         ? 'bg-gradient-to-r from-brand-blue-600 to-brand-coral-500 text-white shadow-[0_8px_20px_-6px_rgba(240,64,95,0.45)] scale-[1.02]'
