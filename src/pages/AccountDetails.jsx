@@ -143,26 +143,12 @@ export default function AccountDetails() {
     [completed, personalGatePending]
   );
 
-  // Left-side step navigation — same validation rules.
+  // Left-side step navigation — the sidebar is now freely clickable, so this
+  // just switches the tab directly instead of gating on canAccess(). canAccess
+  // itself is unchanged and still drives the Sidebar's "locked" visual style.
   const handleSelect = (step) => {
-    if (canAccess(step)) {
-      setActiveTab(step);
-    } else if (personalGatePending && ['bank', 'nominee', 'others'].includes(step)) {
-      setStepError('Please complete your Personal Details verification (DigiLocker + e-Sign) before accessing Bank, Nominee or DDPI.');
-    } else {
-      setStepError('Please complete the current step before moving ahead.');
-    }
+    setActiveTab(step);
   };
-
-  // If a persisted step is no longer reachable (stale session), fall back to the
-  // furthest step the user is actually allowed to be on — never silently to
-  // Personal unless that is genuinely the furthest reachable step.
-  useEffect(() => {
-    if (account && !canAccess(activeTab)) {
-      const reachable = [...STEP_ORDER].reverse().find(canAccess) || 'personal';
-      setActiveTabState(reachable);
-    }
-  }, [account, activeTab, canAccess]);
 
   if (!account) return null;
 
