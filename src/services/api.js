@@ -2,14 +2,20 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
+// A missing VITE_API_URL is a real misconfiguration (set it in
+// frontend/.env.development for local dev, or as an Amplify environment
+// variable in production) — but it must never blank the whole app. This used
+// to throw at module load, which crashed the entire React tree before it
+// could render anything if the env var was ever unset; fall back instead so
+// the app still loads (API calls will just fail with a clear network error).
 if (!API_BASE_URL) {
-  throw new Error(
-    'VITE_API_URL is not configured. Set it in frontend/.env.development for local dev, or as an Amplify environment variable in production.'
+  console.error(
+    'VITE_API_URL is not configured — falling back to http://localhost:5090/api. Set it in frontend/.env.development for local dev, or as an Amplify environment variable in production.'
   );
 }
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL || 'http://localhost:5090/api',
 });
 
 api.interceptors.request.use((config) => {
