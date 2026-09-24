@@ -222,11 +222,17 @@ export default function EsignSelectionPage() {
   // (e.g. Nominee right after Bank) stay reachable. So: fully done -> show the
   // success screen and hand off to the marketing site; not done yet -> just
   // return to Account Details, where the next unlocked step is now clickable.
-  const operationFinalized = account?.operationStatus === 'PENDING_VERIFICATION' || account?.operationStatus === 'COMPLETED';
+  const operationStatus = account?.operationStatus;
+  const operationFinalized = operationStatus === 'PENDING_VERIFICATION' || operationStatus === 'COMPLETED';
   useEffect(() => {
     if (!allSigned) return;
     if (!operationFinalized) {
-      navigate('/account');
+      // Only leave once the operation has actually been reopened
+      // (IN_PROGRESS). While it still says AWAITING_ESIGN the account page's
+      // Document step would send the client straight back here, bouncing
+      // between the two pages forever — stay put; the backend advances the
+      // operation on the next status check and this effect re-runs.
+      if (operationStatus === 'IN_PROGRESS') navigate('/account');
       return;
     }
     setRedirectSeconds(8);
@@ -240,7 +246,7 @@ export default function EsignSelectionPage() {
       clearInterval(tick);
       clearTimeout(redirect);
     };
-  }, [allSigned, operationFinalized, navigate]);
+  }, [allSigned, operationFinalized, operationStatus, navigate]);
 
   const handleDownload = async (formType) => {
     try {
