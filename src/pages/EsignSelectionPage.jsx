@@ -120,12 +120,14 @@ export default function EsignSelectionPage() {
       const onFinalError = (err) => {
         const message = err.code === err.PERMISSION_DENIED
           ? 'Location access was denied. Please allow location access in your browser and try again — it is required to eSign.'
-          : 'Could not determine your location. Please check that location services are turned on for your device and browser, then try again — it is required to eSign.';
+          : `Could not determine your location (${err.code}${err.message ? `: ${err.message}` : ''}). Please check that location services are turned on for your device and browser, then try again — it is required to eSign.`;
         reject(new Error(message));
       };
-      // Desktops without GPS commonly can't satisfy a high-accuracy request
-      // (POSITION_UNAVAILABLE / timeout). Retry once at normal accuracy, which
-      // still returns the device's real, Wi-Fi/network-derived coordinates.
+      // Normal accuracy returns the device's real Wi-Fi/network-derived
+      // coordinates and works on desktops without GPS. The first lookup after
+      // the OS location service wakes up can be slow, so allow it up to 45s
+      // (and reuse a fix from the last 10 minutes if the browser has one).
+      // High accuracy is only a fallback, since it often times out on PCs.
       navigator.geolocation.getCurrentPosition(
         onSuccess,
         (err) => {
@@ -133,10 +135,10 @@ export default function EsignSelectionPage() {
           navigator.geolocation.getCurrentPosition(
             onSuccess,
             onFinalError,
-            { timeout: 15000, enableHighAccuracy: false, maximumAge: 300000 }
+            { timeout: 15000, enableHighAccuracy: true }
           );
         },
-        { timeout: 8000, enableHighAccuracy: true }
+        { timeout: 45000, enableHighAccuracy: false, maximumAge: 600000 }
       );
     });
 
