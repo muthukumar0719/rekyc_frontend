@@ -116,15 +116,27 @@ export default function EsignSelectionPage() {
       if (!navigator.geolocation) {
         return reject(new Error('Your browser does not support location access, which is required to eSign.'));
       }
+      const onSuccess = (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      const onFinalError = (err) => {
+        const message = err.code === err.PERMISSION_DENIED
+          ? 'Location access was denied. Please allow location access in your browser and try again — it is required to eSign.'
+          : 'Could not determine your location. Please check that location services are turned on for your device and browser, then try again — it is required to eSign.';
+        reject(new Error(message));
+      };
+      // Desktops without GPS commonly can't satisfy a high-accuracy request
+      // (POSITION_UNAVAILABLE / timeout). Retry once at normal accuracy, which
+      // still returns the device's real, Wi-Fi/network-derived coordinates.
       navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        onSuccess,
         (err) => {
-          const message = err.code === err.PERMISSION_DENIED
-            ? 'Location access was denied. Please allow location access in your browser and try again — it is required to eSign.'
-            : 'Could not determine your location. Please try again — it is required to eSign.';
-          reject(new Error(message));
+          if (err.code === err.PERMISSION_DENIED) return onFinalError(err);
+          navigator.geolocation.getCurrentPosition(
+            onSuccess,
+            onFinalError,
+            { timeout: 15000, enableHighAccuracy: false, maximumAge: 300000 }
+          );
         },
-        { timeout: 10000, enableHighAccuracy: true }
+        { timeout: 8000, enableHighAccuracy: true }
       );
     });
 
@@ -137,6 +149,7 @@ export default function EsignSelectionPage() {
     } catch (locErr) {
       setError(locErr.message);
       setSigningForm(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
