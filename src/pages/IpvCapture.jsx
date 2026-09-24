@@ -6,6 +6,7 @@ import PageShell from '../components/ui/PageShell';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import aionionLogo from '../assets/aionion-logo.png';
+import { appUrl } from '../utils/basePath';
 
 export default function IpvCapture() {
   const { clientId } = useParams();
@@ -65,10 +66,10 @@ export default function IpvCapture() {
       try {
         setFaceMsg('Loading models locally...');
         // Load locally from public/models (WASM copied here)
-        const filesetResolver = await FilesetResolver.forVisionTasks('/models');
+        const filesetResolver = await FilesetResolver.forVisionTasks(appUrl('models'));
         const faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
           baseOptions: {
-            modelAssetPath: '/models/face_landmarker.task',
+            modelAssetPath: appUrl('models/face_landmarker.task'),
             delegate: 'CPU'
           },
           outputFaceBlendshapes: true,

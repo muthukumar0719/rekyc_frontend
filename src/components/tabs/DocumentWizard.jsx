@@ -12,6 +12,7 @@ import { CheckCircle, AlertCircle, RefreshCw, ArrowRight, ArrowLeft, Lock, Landm
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import SignaturePad from '../SignaturePad';
+import { appUrl, appAbsoluteUrl } from '../../utils/basePath';
 
 // Which required-document types map to their own wizard step, in display order.
 // CLIENT_IMAGE isn't a step here — it's the existing IPV flow, reached after
@@ -152,7 +153,7 @@ export default function DocumentWizard({ account, onProceed }) {
     try {
       setDigilockerLoading(true);
       setError(null);
-      const redirectUrl = `${window.location.origin}/digilocker-callback?type=document`;
+      const redirectUrl = `${appAbsoluteUrl('digilocker-callback')}?type=document`;
       const { data } = await startDocumentDigilocker(account.clientId, { redirectUrl });
 
       if (data.success && data.data?.url) {
@@ -258,7 +259,7 @@ export default function DocumentWizard({ account, onProceed }) {
     // Last content step done — move on to the live photo step, or straight
     // to eSign if a photo was already captured earlier in this operation.
     if (requiredList.includes('CLIENT_IMAGE') && !getDocRecord('CLIENT_IMAGE')) {
-      window.location.href = `/ipv-capture/${account.clientId}`;
+      window.location.href = appUrl(`ipv-capture/${account.clientId}`);
       return;
     }
     handleProceed();

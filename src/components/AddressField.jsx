@@ -3,6 +3,7 @@ import { Pencil } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { startDigilocker, confirmDigilockerAddress, fetchAccount } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { appAbsoluteUrl } from '../utils/basePath';
 
 export default function AddressField({ disabled = false, label, value, pending, clientId, wide }) {
   const { updateAccount } = useAuth();
@@ -27,7 +28,7 @@ export default function AddressField({ disabled = false, label, value, pending, 
     setError('');
     try {
       // Create callback URL for this app
-      const redirectUrl = `${window.location.origin}/digilocker-callback`;
+      const redirectUrl = appAbsoluteUrl('digilocker-callback');
       const { data } = await startDigilocker(clientId, redirectUrl);
 
       // SETU returns the URL in the `url` field

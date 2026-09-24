@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { appUrl } from '../utils/basePath';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -32,7 +33,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       sessionStorage.removeItem('rekyc_token');
       sessionStorage.removeItem('rekyc_account');
-      window.location.href = '/login';
+      window.location.href = appUrl('login');
     }
     return Promise.reject(error);
   }
