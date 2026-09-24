@@ -40,11 +40,15 @@ export default function EsignSelectionPage() {
     }
   };
 
-  const fetchRequirements = async () => {
+  // `silent` refreshes (the 5s status polling) must not swap the whole page for
+  // the loading spinner — that made the screen blink every few seconds — and
+  // must not replace `requirements` with an identical array, which would
+  // re-trigger the preview downloads below for nothing.
+  const fetchRequirements = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.get(`/client/${clientId}/esign/requirements?operation_id=${operationId}`);
-      setRequirements(res.data.requirements);
+      setRequirements((prev) => (JSON.stringify(prev) === JSON.stringify(res.data.requirements) ? prev : res.data.requirements));
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load eSign requirements');
@@ -65,7 +69,8 @@ export default function EsignSelectionPage() {
   // (e.g. a personal-details edit, or a DDPI/nominee change lands on this
   // operation, or the user hits "Refresh Status").
   useEffect(() => {
-    const toFetch = requirements.filter((req) => req.status !== 'sign_complete');
+    // A pending form shows no inline preview (only signed/unsigned states do).
+    const toFetch = requirements.filter((req) => req.status !== 'sign_complete' && req.status !== 'pending');
     toFetch.forEach(async (req) => {
       // Drop the previous preview (if any) the moment a refresh starts, so
       // the UI falls back to "Loading preview…" instead of ever silently
@@ -108,39 +113,47 @@ export default function EsignSelectionPage() {
     };
   }, []);
 
-  // Location is mandatory for eSign — Setu records it as part of the signed
-  // audit trail, so we no longer fall back to a hardcoded default when it's
-  // unavailable; the client must grant it.
-  const getCurrentPosition = () =>
+  // Setu records the signer's location in the signed audit trail, so a real
+  // location is always sent — never a hardcoded default. The browser's own
+  // location is used first (precise). If the browser can't or won't provide it
+  // (permission blocked, OS location service off, timeout, extension
+  // interference…), fall back to the network-derived location of the client's
+  // connection (city-level) and flag it as approximate so the audit trail says
+  // exactly where the coordinates came from.
+  const getBrowserPosition = () =>
     new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        return reject(new Error('Your browser does not support location access, which is required to eSign.'));
-      }
-      const onSuccess = (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      const onFinalError = (err) => {
-        const message = err.code === err.PERMISSION_DENIED
-          ? 'Location access was denied. Please allow location access in your browser and try again — it is required to eSign.'
-          : `Could not determine your location (${err.code}${err.message ? `: ${err.message}` : ''}). Please check that location services are turned on for your device and browser, then try again — it is required to eSign.`;
-        reject(new Error(message));
-      };
-      // Normal accuracy returns the device's real Wi-Fi/network-derived
-      // coordinates and works on desktops without GPS. The first lookup after
-      // the OS location service wakes up can be slow, so allow it up to 45s
-      // (and reuse a fix from the last 10 minutes if the browser has one).
-      // High accuracy is only a fallback, since it often times out on PCs.
+      if (!navigator.geolocation) return reject(new Error('Geolocation is not supported'));
       navigator.geolocation.getCurrentPosition(
-        onSuccess,
-        (err) => {
-          if (err.code === err.PERMISSION_DENIED) return onFinalError(err);
-          navigator.geolocation.getCurrentPosition(
-            onSuccess,
-            onFinalError,
-            { timeout: 15000, enableHighAccuracy: true }
-          );
-        },
-        { timeout: 45000, enableHighAccuracy: false, maximumAge: 600000 }
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, location_source: 'browser' }),
+        reject,
+        { timeout: 20000, enableHighAccuracy: false, maximumAge: 600000 }
       );
     });
+
+  const getApproxPositionFromIp = async () => {
+    const res = await fetch('https://ipwho.is/?fields=success,latitude,longitude');
+    const data = await res.json();
+    if (!data.success || typeof data.latitude !== 'number' || typeof data.longitude !== 'number') {
+      throw new Error('IP location lookup failed');
+    }
+    return { lat: data.latitude, lng: data.longitude, location_source: 'ip' };
+  };
+
+  const getCurrentPosition = async () => {
+    try {
+      return await getBrowserPosition();
+    } catch (browserErr) {
+      console.warn('Browser location unavailable, using approximate network location:', browserErr?.code, browserErr?.message);
+      try {
+        return await getApproxPositionFromIp();
+      } catch (ipErr) {
+        console.warn('Approximate location lookup failed:', ipErr?.message);
+        throw new Error(
+          'We could not determine your location. Please allow location access for this site in your browser (click the lock icon next to the address, then Site settings → Location → Allow) and try again — it is required to eSign.'
+        );
+      }
+    }
+  };
 
   const handleSign = async (formType) => {
     setSigningForm(formType);
@@ -179,7 +192,7 @@ export default function EsignSelectionPage() {
   const handleRefreshStatus = async (formType, silent = false) => {
     try {
       await api.get(`/client/${clientId}/esign/${formType}/status?operation_id=${operationId}`);
-      await fetchRequirements();
+      await fetchRequirements({ silent });
     } catch (err) {
       if (!silent) setError(err.response?.data?.message || 'Failed to check status');
     }
