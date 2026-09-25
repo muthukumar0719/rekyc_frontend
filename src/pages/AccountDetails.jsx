@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import Topbar from '../components/Topbar';
 import Sidebar from '../components/Sidebar';
 import AccountHeader from '../components/AccountHeader';
@@ -67,10 +68,16 @@ function derivedCompletion(account) {
 
 export default function AccountDetails() {
   const { account } = useAuth();
-  // activeTab is persisted so a route round-trip (e.g. "Add Bank Account", which
-  // navigates to /account/add-bank and back) or a page refresh does NOT reset
-  // the user to Personal.
-  const [activeTab, setActiveTabState] = useState(loadActiveTab);
+  // The active step lives in the URL (/account?step=nominee) so the sidebar
+  // highlight and the rendered tab are always driven by the current route.
+  // Without a ?step= (e.g. navigate('/account') from Add Bank / eSign) it falls
+  // back to the step persisted in sessionStorage, so a route round-trip or a
+  // page refresh does NOT reset the user to Personal.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const stepParam = searchParams.get('step');
+  const [fallbackTab] = useState(loadActiveTab);
+  const activeTab = STEP_ORDER.includes(stepParam) ? stepParam : fallbackTab;
   const [completedSession, setCompletedSession] = useState(loadCompleted);
   const [stepError, setStepError] = useState('');
 
@@ -95,8 +102,18 @@ export default function AccountDetails() {
 
   const setActiveTab = useCallback((id) => {
     setStepError('');
-    setActiveTabState(id);
-  }, []);
+    // replace: switching steps must not add browser-history entries (the
+    // navigation flow is unchanged); keep any route state (e.g. the
+    // DigiLocker address handed back to the Personal tab).
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('step', id);
+        return next;
+      },
+      { replace: true, state: location.state }
+    );
+  }, [setSearchParams, location.state]);
 
   const markCompleted = useCallback((step) => {
     setCompletedSession((prev) => (prev[step] ? prev : { ...prev, [step]: true }));
