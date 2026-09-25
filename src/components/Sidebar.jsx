@@ -28,7 +28,7 @@ export default function Sidebar({ active, onSelect, completed = {}, canAccess = 
             return (
               <li
                 key={tab.id}
-                className={`relative flex items-center group cursor-pointer ${locked ? 'opacity-50' : ''}`}
+                className={`relative flex items-center group cursor-pointer ${locked && !isActive ? 'opacity-50' : ''}`}
               >
                 {/* Timeline Dot */}
                 <div
