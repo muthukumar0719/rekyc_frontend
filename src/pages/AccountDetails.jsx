@@ -145,19 +145,14 @@ export default function AccountDetails() {
     if (next) setActiveTab(next);
   };
 
+  // Drives only the Sidebar's dimmed "locked" style (navigation is free, see
+  // handleSelect). The one real lock: Bank / Nominee / DDPI stay locked until
+  // the pending Personal Details DigiLocker + e-Sign is complete. Steps are
+  // NOT dimmed just because the previous step wasn't changed — every change is
+  // optional, so e.g. Nominee must look normal even when Bank was skipped.
   const canAccess = useCallback(
-    (step) => {
-      const idx = STEP_ORDER.indexOf(step);
-      if (idx <= 0) return true; // Personal is always reachable
-      // Bank / Nominee / DDPI stay locked until the pending Personal Details
-      // DigiLocker + e-Sign is complete; Document stays reachable so the
-      // client has a way to actually finish that verification.
-      if (personalGatePending && ['bank', 'nominee', 'others'].includes(step)) return false;
-      if (completed[step]) return true; // completed steps stay reachable (go back)
-      if (personalGatePending && step === 'document') return true;
-      return !!completed[STEP_ORDER[idx - 1]]; // otherwise only if the previous step is done
-    },
-    [completed, personalGatePending]
+    (step) => !(personalGatePending && ['bank', 'nominee', 'others'].includes(step)),
+    [personalGatePending]
   );
 
   // Left-side step navigation — the sidebar is now freely clickable, so this
