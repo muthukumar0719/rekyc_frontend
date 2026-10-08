@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload } from 'lucide-react';
-import { addBankAccount, uploadManualDocument } from '../services/api';
+import { addBankAccount, lookupBankIfsc, uploadManualDocument } from '../services/api';
 import { maskAccount, maskAccountLast4 } from '../utils/mask';
 import { useAuth } from '../context/AuthContext';
 import PageShell from '../components/ui/PageShell';
@@ -22,6 +22,31 @@ export default function AddBankAccount() {
   const [declaration, setDeclaration] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Bank / branch / MICR / address from bank_master for the entered IFSC.
+  const [ifscDetails, setIfscDetails] = useState(null);
+  const [ifscLookup, setIfscLookup] = useState({ loading: false, message: '' });
+
+  // As soon as a complete, valid IFSC is entered, show its bank details.
+  // Informational only — the backend looks the IFSC up again when saving.
+  useEffect(() => {
+    const code = ifsc.trim();
+    setIfscDetails(null);
+    if (!account || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(code)) {
+      setIfscLookup({ loading: false, message: '' });
+      return undefined;
+    }
+    let cancelled = false;
+    setIfscLookup({ loading: true, message: '' });
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await lookupBankIfsc(account.clientId, code);
+        if (!cancelled) { setIfscDetails(data.data); setIfscLookup({ loading: false, message: '' }); }
+      } catch (err) {
+        if (!cancelled) setIfscLookup({ loading: false, message: err.response?.data?.message || 'Could not fetch bank details for this IFSC.' });
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [ifsc, account]);
 
   // Re-enter field: typing only, no clipboard, and masked while typing. The
   // real digits stay in `reAccountNumber` state so validation can still
@@ -135,7 +160,29 @@ export default function AddBankAccount() {
                 placeholder="e.g., HDFC0001234"
                 className="w-full bg-white/60 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:bg-white focus:ring-2 focus:ring-brand-blue-500/40 focus:border-brand-blue-500 transition-all shadow-inner uppercase text-slate-800 tracking-wide"
               />
+              {ifscLookup.loading && <p className="text-xs text-slate-400 mt-2">Fetching bank details…</p>}
+              {ifscLookup.message && <p className="text-xs text-amber-600 mt-2">{ifscLookup.message}</p>}
             </div>
+            {ifscDetails && (
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 bg-slate-50/70 border border-slate-200 rounded-xl p-4 text-sm">
+                <div>
+                  <p className="text-xs font-bold text-slate-500">BANK NAME</p>
+                  <p className="text-slate-800">{ifscDetails.bank_name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-500">BRANCH</p>
+                  <p className="text-slate-800">{ifscDetails.branch_name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-500">MICR CODE</p>
+                  <p className="text-slate-800">{ifscDetails.micr_code || '—'}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="text-xs font-bold text-slate-500">BRANCH ADDRESS</p>
+                  <p className="text-slate-800">{ifscDetails.address || '—'}</p>
+                </div>
+              </div>
+            )}
             <div className="group">
               <label className="block text-xs font-bold text-slate-600 mb-2 group-focus-within:text-brand-blue-600 transition-colors">ACCOUNT TYPE</label>
               <select

@@ -47,6 +47,8 @@ export const fetchAccount = (clientCode) => api.get(`/client/${clientCode}`);
 
 export const addBankAccount = (clientCode, payload) => api.post(`/client/${clientCode}/bank`, payload);
 
+export const lookupBankIfsc = (clientCode, ifsc) => api.get(`/client/${clientCode}/bank/ifsc/${encodeURIComponent(ifsc)}`);
+
 export const deleteBankAccount = (clientCode) => api.delete(`/client/${clientCode}/bank`);
 
 export const updateNominee = (clientCode, payload) => api.post(`/client/${clientCode}/nominee`, payload);
