@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload } from 'lucide-react';
-import { addBankAccount, lookupBankIfsc, uploadManualDocument } from '../services/api';
+import { addBankAccount, lookupBankIfsc, verifyBankStatement } from '../services/api';
 import { maskAccount, maskAccountLast4 } from '../utils/mask';
 import { useAuth } from '../context/AuthContext';
 import PageShell from '../components/ui/PageShell';
@@ -25,6 +25,8 @@ export default function AddBankAccount() {
   // Bank / branch / MICR / address from bank_master for the entered IFSC.
   const [ifscDetails, setIfscDetails] = useState(null);
   const [ifscLookup, setIfscLookup] = useState({ loading: false, message: '' });
+  // Result of the bank statement OCR check (shown under the upload).
+  const [statementCheck, setStatementCheck] = useState(null);
 
   // As soon as a complete, valid IFSC is entered, show its bank details.
   // Informational only — the backend looks the IFSC up again when saving.
@@ -76,31 +78,34 @@ export default function AddBankAccount() {
     if (!ifsc.trim()) return setError('IFSC is required.');
     const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
     if (!ifscRegex.test(ifsc.trim())) return setError('Enter a valid IFSC code (e.g., HDFC0001234).');
+    if (!statementFile) return setError('Please upload your bank statement.');
+    if (statementFile.size > 6 * 1024 * 1024) return setError('The bank statement must be 6 MB or smaller.');
     if (!declaration) return setError('Please accept the declaration to proceed.');
 
     setLoading(true);
+    setStatementCheck(null);
     try {
+      // 1. The statement is read (OCR) and must match the entered account
+      //    number + IFSC, with a transaction in the last 6 months. The
+      //    backend stores a passing statement as the bank proof itself.
+      const formData = new FormData();
+      formData.append('file', statementFile);
+      formData.append('accountNumber', accountNumber.trim());
+      formData.append('ifscCode', ifsc.trim());
+      const { data: check } = await verifyBankStatement(account.clientId, formData);
+      setStatementCheck(check.data);
+      if (!check.data.verified) {
+        setError(check.data.message);
+        return;
+      }
+
+      // 2. Save the bank account (the backend re-checks the verification).
       const { data } = await addBankAccount(account.clientId, {
         accountNumber: accountNumber.trim(),
         ifscCode: ifsc.trim(),
         accountType,
       });
       updateAccount(data.data);
-
-      if (statementFile) {
-        try {
-          const formData = new FormData();
-          formData.append('documentType', 'BANK_PROOF');
-          formData.append('file', statementFile);
-          await uploadManualDocument(account.clientId, formData);
-        } catch (uploadErr) {
-          // Bank account itself is already saved — surface the upload failure
-          // separately rather than losing the successful save.
-          setError(uploadErr.response?.data?.message || 'Bank account saved, but the statement upload failed.');
-          setLoading(false);
-          return;
-        }
-      }
 
       navigate('/account');
     } catch (err) {
@@ -196,12 +201,12 @@ export default function AddBankAccount() {
             </div>
 
             <div className="group md:col-span-2">
-              <label className="block text-xs font-bold text-slate-600 mb-2">BANK STATEMENT (OPTIONAL)</label>
+              <label className="block text-xs font-bold text-slate-600 mb-2">BANK STATEMENT (REQUIRED)</label>
               <div className="flex items-center gap-3">
                 <input
                   type="file"
-                  accept="application/pdf,image/*"
-                  onChange={(e) => setStatementFile(e.target.files?.[0] || null)}
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => { setStatementFile(e.target.files?.[0] || null); setStatementCheck(null); }}
                   className="hidden"
                   id="bank-statement-input"
                 />
@@ -212,7 +217,18 @@ export default function AddBankAccount() {
                   <Upload size={16} /> {statementFile ? statementFile.name : 'Choose file'}
                 </label>
               </div>
-              <p className="text-xs text-slate-400 mt-2">A cancelled cheque or bank statement, uploaded as proof for this account.</p>
+              <p className="text-xs text-slate-400 mt-2">
+                A bank statement for this account (PDF, JPG or PNG, up to 6 MB) showing the account number, IFSC
+                and a transaction from the last 6 months. Password-protected PDFs cannot be read.
+              </p>
+              {statementCheck && (
+                <div className={`mt-3 rounded-xl border p-3 text-xs ${statementCheck.verified ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                  <p className="font-bold mb-1">{statementCheck.verified ? 'Statement verified' : 'Statement not verified'}</p>
+                  <p>Account number on statement: {statementCheck.accountNumber || 'not found'}</p>
+                  <p>IFSC on statement: {statementCheck.ifscCode || 'not found'}</p>
+                  <p>Latest transaction: {statementCheck.latestTransactionDate || 'not found'}</p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -49,6 +49,10 @@ export const addBankAccount = (clientCode, payload) => api.post(`/client/${clien
 
 export const lookupBankIfsc = (clientCode, ifsc) => api.get(`/client/${clientCode}/bank/ifsc/${encodeURIComponent(ifsc)}`);
 
+// Multipart: file + accountNumber + ifscCode. OCR-checks the bank statement.
+export const verifyBankStatement = (clientCode, formData) =>
+  api.post(`/client/${clientCode}/bank/statement/verify`, formData, { timeout: 60000 });
+
 export const deleteBankAccount = (clientCode) => api.delete(`/client/${clientCode}/bank`);
 
 export const updateNominee = (clientCode, payload) => api.post(`/client/${clientCode}/nominee`, payload);
