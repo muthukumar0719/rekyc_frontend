@@ -20,6 +20,7 @@ export default function EsignSelectionPage() {
   const [error, setError] = useState(null);
   const [signingForm, setSigningForm] = useState(null);
   const [previewUrls, setPreviewUrls] = useState({});
+  const [previewErrors, setPreviewErrors] = useState({});
   const [redirectSeconds, setRedirectSeconds] = useState(8);
 
   const allSigned = requirements.length > 0 && requirements.every((r) => r.status === 'sign_complete');
@@ -83,19 +84,37 @@ export default function EsignSelectionPage() {
         delete next[req.form_type];
         return next;
       });
+      setPreviewErrors((prev) => ({ ...prev, [req.form_type]: null }));
       try {
         const res = await api.get(`/client/${clientId}/esign/${req.form_type}/preview?operation_id=${operationId}`, {
           responseType: 'blob',
         });
-        const blobUrl = URL.createObjectURL(res.data);
+        // A preview too large for Lambda comes back as JSON with a presigned
+        // S3 URL instead of the PDF itself.
+        let url;
+        if (res.data.type && res.data.type.includes('application/json')) {
+          const body = JSON.parse(await res.data.text());
+          if (!body.preview_url) throw new Error(body.message || 'Preview unavailable');
+          url = body.preview_url;
+        } else {
+          url = URL.createObjectURL(res.data);
+        }
         setPreviewUrls((prev) => {
           if (prev[req.form_type]) URL.revokeObjectURL(prev[req.form_type]);
-          return { ...prev, [req.form_type]: blobUrl };
+          return { ...prev, [req.form_type]: url };
         });
       } catch (err) {
-        // Preview is a convenience — swallow errors, the sign flow still works
-        // without it (the "Loading preview…" state just stays put).
+        // Preview is a convenience — the sign flow still works without it —
+        // but show the server's reason instead of spinning forever. With
+        // responseType 'blob' the error body is a Blob too.
         console.error(`Failed to load preview for ${req.form_type}:`, err);
+        let message = err.message || 'Preview unavailable';
+        try {
+          const data = err.response?.data;
+          const body = data instanceof Blob ? JSON.parse(await data.text()) : data;
+          if (body?.message) message = body.message;
+        } catch { /* non-JSON error body */ }
+        setPreviewErrors((prev) => ({ ...prev, [req.form_type]: message }));
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -384,6 +403,10 @@ export default function EsignSelectionPage() {
                         src={previewUrls[req.form_type]}
                         className="w-full h-[500px] rounded-lg border border-slate-200"
                       />
+                    ) : previewErrors[req.form_type] ? (
+                      <div className="flex items-center justify-center min-h-40 p-4 text-red-600 text-sm gap-2 text-center">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" /> {previewErrors[req.form_type]}
+                      </div>
                     ) : (
                       <div className="flex items-center justify-center h-40 text-slate-400 text-sm gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" /> Loading preview…
