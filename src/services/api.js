@@ -55,6 +55,9 @@ export const verifyBankStatement = (clientCode, formData) =>
 
 export const deleteBankAccount = (clientCode) => api.delete(`/client/${clientCode}/bank`);
 
+// source: 'existing' (bank on file) | 'rekyc' (bank added in this Re-KYC)
+export const setDefaultBank = (clientCode, source) => api.put(`/client/${clientCode}/bank/default`, { source });
+
 export const updateNominee = (clientCode, payload) => api.post(`/client/${clientCode}/nominee`, payload);
 
 export const startNomineeEsign = (clientCode) => api.post(`/client/${clientCode}/nominee/esign/start`);

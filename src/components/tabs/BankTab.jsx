@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Trash2 } from 'lucide-react';
-import { startBankEsign, deleteBankAccount } from '../../services/api';
+import { startBankEsign, deleteBankAccount, setDefaultBank } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import SignaturePad from '../SignaturePad';
 
@@ -21,6 +21,26 @@ export default function BankTab({ account, onNext }) {
   const [deleting, setDeleting] = useState(false);
   const [bankError, setBankError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
+  // The default can only be changed between two accounts, while the request
+  // is still editable.
+  const canChooseDefault = banks.length > 1 && !isLocked;
+
+  // Make `bank` the default; the server clears the previous default (one
+  // default per client) and returns the refreshed account.
+  const handleSetDefault = async (bank) => {
+    if (bank.isDefault || savingDefault) return;
+    setBankError('');
+    setSavingDefault(true);
+    try {
+      const { data } = await setDefaultBank(account.clientId, bank.source);
+      updateAccount(data.data);
+    } catch (err) {
+      setBankError(err.response?.data?.message || 'Could not set the default bank account.');
+    } finally {
+      setSavingDefault(false);
+    }
+  };
 
   // Remove the bank account added in this flow — only after the user confirms.
   // Only that account is affected.
@@ -151,7 +171,23 @@ export default function BankTab({ account, onNext }) {
                 </td>
                 <td className="py-3 pr-4">{b.accountNumber}</td>
                 <td className="py-3 pr-4">{b.ifscCode}</td>
-                <td className="py-3 pr-4">{b.isDefault ? 'Set as Default' : '—'}</td>
+                <td className="py-3 pr-4">
+                  <label
+                    className={`inline-flex items-center gap-2 whitespace-nowrap ${canChooseDefault && !b.isDefault ? 'cursor-pointer' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="defaultBank"
+                      checked={!!b.isDefault}
+                      onChange={() => handleSetDefault(b)}
+                      disabled={!canChooseDefault || savingDefault}
+                      className="w-4 h-4 accent-brand-blue-600 disabled:opacity-60"
+                    />
+                    <span className={b.isDefault ? 'font-semibold text-brand-blue-700' : 'text-slate-500'}>
+                      {b.isDefault ? 'Default' : 'Set as Default'}
+                    </span>
+                  </label>
+                </td>
                 <td className="py-3 pr-4">{b.accountType}</td>
                 <td className="py-3 pr-4">
                   {b.penny_drop_status?.toUpperCase() === 'PASS' && <span className="text-green-600 font-medium">✓ Verified</span>}
