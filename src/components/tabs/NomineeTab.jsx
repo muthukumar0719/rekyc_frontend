@@ -327,7 +327,7 @@ export default function NomineeTab({ account, onNext }) {
                       <Field label="Guardian First Name*" value={n.guardianFirstName} onChange={(v) => updateNomineeField(index, 'guardianFirstName', v)} required />
                       <Field label="Guardian Middle Name" value={n.guardianMiddleName} onChange={(v) => updateNomineeField(index, 'guardianMiddleName', v)} />
                       <Field label="Guardian Last Name*" value={n.guardianLastName} onChange={(v) => updateNomineeField(index, 'guardianLastName', v)} required />
-                      <SelectField label="Guardian's Relationship with Nominee*" value={n.guardianRelation} onChange={(v) => updateNomineeField(index, 'guardianRelation', v)} required options={['Father', 'Mother', 'Other']} />
+                      <SelectField label="Guardian's Relationship with Nominee*" value={n.guardianRelation} onChange={(v) => updateNomineeField(index, 'guardianRelation', v)} required options={['Father', 'Mother', 'Legal Guardian']} />
                       <Field label="Guardian Mobile*" value={n.guardianMobile} onChange={(v) => updateNomineeField(index, 'guardianMobile', v.replace(/\D/g, '').slice(0, 10))} required type="tel" />
                       <Field label="Guardian Email*" value={n.guardianEmail} onChange={(v) => updateNomineeField(index, 'guardianEmail', v.trim())} required type="email" />
                     </div>
