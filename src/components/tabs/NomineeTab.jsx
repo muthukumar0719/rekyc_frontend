@@ -6,6 +6,8 @@ import { PlusCircle, Trash2, ArrowRight, Edit3, User, ChevronDown, ChevronUp } f
 
 const EMPTY_NOMINEE = {
   relation: '', firstName: '', dob: '', percentage: '',
+  guardianFirstName: '', guardianMiddleName: '', guardianLastName: '', guardianRelation: '',
+  guardianMobile: '', guardianEmail: '',
 };
 
 // DOB is entered/shown as DD/MM/YYYY; stored on the wire as ISO (YYYY-MM-DD).
@@ -15,6 +17,22 @@ const dmyToISO = (s) => {
   const m = String(s || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
 };
+
+// Under 18 today, from a DD/MM/YYYY date of birth. A minor nominee needs a
+// guardian (the server checks the same rule and prints the guardian on the form).
+const isMinor = (dmy) => {
+  const iso = dmyToISO(dmy);
+  if (!iso) return false;
+  const [y, m, d] = iso.split('-').map(Number);
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) age -= 1;
+  return age >= 0 && age < 18;
+};
+
+const GUARDIAN_FIELDS = ['guardianFirstName', 'guardianMiddleName', 'guardianLastName', 'guardianRelation', 'guardianMobile', 'guardianEmail'];
+const VALID_MOBILE = /^[6-9]\d{9}$/;
+const VALID_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ── Existing Nominee Card (read-only display) ────────────────────────────────
 function ExistingNomineeCard({ nominee, index }) {
@@ -144,16 +162,20 @@ export default function NomineeTab({ account, onNext }) {
           return;
         }
       }
-      for (const n of nominees) {
-        const iso = dmyToISO(n.dob);
-        if (iso) {
-          const ageDifMs = Date.now() - new Date(iso).getTime();
-          const ageDate = new Date(ageDifMs);
-          const age = Math.abs(ageDate.getUTCFullYear() - 1970);
-          if (age < 18) {
-            setError('Minor nominees (under 18) are not allowed.');
-            return;
-          }
+      for (let i = 0; i < nominees.length; i++) {
+        const n = nominees[i];
+        if (!isMinor(n.dob)) continue;
+        if (!n.guardianFirstName.trim() || !n.guardianLastName.trim() || !n.guardianRelation) {
+          setError(`Nominee ${i + 1} is a minor: please fill in the guardian's first name, last name and relationship.`);
+          return;
+        }
+        if (!VALID_MOBILE.test(n.guardianMobile.trim())) {
+          setError(`Nominee ${i + 1} is a minor: please enter the guardian's 10-digit mobile number.`);
+          return;
+        }
+        if (!VALID_EMAIL.test(n.guardianEmail.trim())) {
+          setError(`Nominee ${i + 1} is a minor: please enter a valid guardian email.`);
+          return;
         }
       }
     }
@@ -164,7 +186,14 @@ export default function NomineeTab({ account, onNext }) {
     try {
       const payload = {
         option,
-        nominees: option === 'YES' ? nominees.map((n) => ({ ...n, dob: dmyToISO(n.dob) })) : [],
+        // Guardian details are sent only for a minor nominee.
+        nominees: option === 'YES'
+          ? nominees.map((n) => {
+            const out = { ...n, dob: dmyToISO(n.dob) };
+            if (!isMinor(n.dob)) GUARDIAN_FIELDS.forEach((k) => { delete out[k]; });
+            return out;
+          })
+          : [],
         meta: { printName, printYesNo, authRights }
       };
       const { data } = await updateNominee(account.clientId, payload);
@@ -288,6 +317,22 @@ export default function NomineeTab({ account, onNext }) {
                   <DobField value={n.dob} onChange={(v) => updateNomineeField(index, 'dob', v)} required />
                   <Field label={`Nominee${index + 1} Percentage*`} value={n.percentage} onChange={(v) => updateNomineeField(index, 'percentage', v)} required type="number" />
                 </div>
+
+                {isMinor(n.dob) && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
+                    <p className="text-sm font-semibold text-amber-800">
+                      This nominee is a minor (under 18). Please add the guardian's details.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                      <Field label="Guardian First Name*" value={n.guardianFirstName} onChange={(v) => updateNomineeField(index, 'guardianFirstName', v)} required />
+                      <Field label="Guardian Middle Name" value={n.guardianMiddleName} onChange={(v) => updateNomineeField(index, 'guardianMiddleName', v)} />
+                      <Field label="Guardian Last Name*" value={n.guardianLastName} onChange={(v) => updateNomineeField(index, 'guardianLastName', v)} required />
+                      <SelectField label="Guardian's Relationship with Nominee*" value={n.guardianRelation} onChange={(v) => updateNomineeField(index, 'guardianRelation', v)} required options={['Father', 'Mother', 'Grandfather', 'Grandmother', 'Brother', 'Sister', 'Legal Guardian', 'Other']} />
+                      <Field label="Guardian Mobile*" value={n.guardianMobile} onChange={(v) => updateNomineeField(index, 'guardianMobile', v.replace(/\D/g, '').slice(0, 10))} required type="tel" />
+                      <Field label="Guardian Email*" value={n.guardianEmail} onChange={(v) => updateNomineeField(index, 'guardianEmail', v.trim())} required type="email" />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 
