@@ -312,7 +312,7 @@ export default function NomineeTab({ account, onNext }) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <SelectField label="Relation*" value={n.relation} onChange={(v) => updateNomineeField(index, 'relation', v)} required options={['Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Other']} />
+                  <SelectField label="Relation*" value={n.relation} onChange={(v) => updateNomineeField(index, 'relation', v)} required options={['Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Grandfather', 'Grandmother']} />
                   <Field label="Name*" value={n.firstName} onChange={(v) => updateNomineeField(index, 'firstName', v)} required />
                   <DobField value={n.dob} onChange={(v) => updateNomineeField(index, 'dob', v)} required />
                   <Field label={`Nominee${index + 1} Percentage*`} value={n.percentage} onChange={(v) => updateNomineeField(index, 'percentage', v)} required type="number" />
@@ -327,7 +327,7 @@ export default function NomineeTab({ account, onNext }) {
                       <Field label="Guardian First Name*" value={n.guardianFirstName} onChange={(v) => updateNomineeField(index, 'guardianFirstName', v)} required />
                       <Field label="Guardian Middle Name" value={n.guardianMiddleName} onChange={(v) => updateNomineeField(index, 'guardianMiddleName', v)} />
                       <Field label="Guardian Last Name*" value={n.guardianLastName} onChange={(v) => updateNomineeField(index, 'guardianLastName', v)} required />
-                      <SelectField label="Guardian's Relationship with Nominee*" value={n.guardianRelation} onChange={(v) => updateNomineeField(index, 'guardianRelation', v)} required options={['Father', 'Mother', 'Grandfather', 'Grandmother', 'Brother', 'Sister', 'Legal Guardian', 'Other']} />
+                      <SelectField label="Guardian's Relationship with Nominee*" value={n.guardianRelation} onChange={(v) => updateNomineeField(index, 'guardianRelation', v)} required options={['Father', 'Mother', 'Other']} />
                       <Field label="Guardian Mobile*" value={n.guardianMobile} onChange={(v) => updateNomineeField(index, 'guardianMobile', v.replace(/\D/g, '').slice(0, 10))} required type="tel" />
                       <Field label="Guardian Email*" value={n.guardianEmail} onChange={(v) => updateNomineeField(index, 'guardianEmail', v.trim())} required type="email" />
                     </div>
