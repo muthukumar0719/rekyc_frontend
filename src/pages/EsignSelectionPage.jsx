@@ -251,7 +251,14 @@ export default function EsignSelectionPage() {
       // Document step would send the client straight back here, bouncing
       // between the two pages forever — stay put; the backend advances the
       // operation on the next status check and this effect re-runs.
-      if (operationStatus === 'IN_PROGRESS') navigate('/account');
+      if (operationStatus === 'IN_PROGRESS') {
+        // Only the Personal Details forms on this request: that was the
+        // DigiLocker + e-Sign gate, so continue at Bank. Going back to the last
+        // tab (Document) would auto-submit the request and lock Bank, Nominee
+        // and DDPI again.
+        const personalOnly = requirements.every((r) => r.form_type === 'MODIFICATION' || r.form_type === 'KRA');
+        navigate(personalOnly ? '/account?step=bank' : '/account');
+      }
       return;
     }
     setRedirectSeconds(8);
@@ -265,7 +272,7 @@ export default function EsignSelectionPage() {
       clearInterval(tick);
       clearTimeout(redirect);
     };
-  }, [allSigned, operationFinalized, operationStatus, navigate]);
+  }, [allSigned, operationFinalized, operationStatus, navigate, requirements]);
 
   const handleDownload = async (formType) => {
     try {
