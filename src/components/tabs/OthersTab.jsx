@@ -22,10 +22,15 @@ export default function OthersTab({ account, onNext }) {
   
   const [ddpiSelection, setDdpiSelection] = useState(currentDdpi);
   const [showDdpiPopup, setShowDdpiPopup] = useState(false);
+  const [ddpiConsentTicked, setDdpiConsentTicked] = useState(false);
+  // Consent is confirmed in the popup but only sent with the SUBMIT that requests DDPI.
+  const [ddpiConsentGiven, setDdpiConsentGiven] = useState(false);
 
   // DDPI charge — comes from the backend (env-driven), never hardcoded. The
   // same value is charged via Razorpay.
   const ddpiCharge = Number(account.others?.ddpiCharge) > 0 ? Number(account.others.ddpiCharge) : 150;
+  // DDPI_PAYMENT_DISABLED on the backend: no Razorpay; the client ticks a consent box.
+  const ddpiPaymentDisabled = Boolean(account.others?.ddpiPaymentDisabled);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,7 +70,10 @@ export default function OthersTab({ account, onNext }) {
     setDdpiError('');
     setDdpiSaved(false);
     try {
-      const { data } = await updateDdpi(account.clientId);
+      const { data } = await updateDdpi(
+        account.clientId,
+        ddpiPaymentDisabled ? { consent: ddpiConsentGiven } : undefined,
+      );
       updateAccount(data.data);
       setDdpiSaved(true);
       return true;
@@ -86,6 +94,12 @@ export default function OthersTab({ account, onNext }) {
   };
 
   const handleDdpiContinue = async () => {
+    // Payment disabled: the consent is only confirmed here. It is sent with SUBMIT.
+    if (ddpiPaymentDisabled) {
+      setDdpiConsentGiven(true);
+      setShowDdpiPopup(false);
+      return;
+    }
     setDdpiError('');
     setDdpiLoading(true);
     try {
@@ -159,7 +173,8 @@ export default function OthersTab({ account, onNext }) {
               const value = e.target.value;
               setDdpiSelection(value);
               // Selecting "Yes" immediately shows the DDPI charge confirmation popup.
-              if (value === 'Yes' && !ddpiActivated) { setDdpiError(''); setShowDdpiPopup(true); }
+              if (value === 'No') setDdpiConsentGiven(false);
+              if (value === 'Yes' && !ddpiActivated) { setDdpiError(''); setDdpiConsentTicked(false); setShowDdpiPopup(true); }
             }}
             disabled={ddpiActivated || ddpiLoading || isLocked}
             className="w-full border border-slate-200 bg-white/60 rounded-xl px-4 py-3 focus:outline-none focus:bg-white focus:ring-2 focus:ring-brand-blue-500/40 focus:border-brand-blue-500 transition-all shadow-inner text-slate-800 disabled:opacity-50"
@@ -212,11 +227,25 @@ export default function OthersTab({ account, onNext }) {
               <p className="text-brand-coral-500 font-bold text-lg">You have selected the DDPI Option</p>
               <p className="text-4xl font-extrabold text-slate-900 mt-4">₹ {ddpiCharge}</p>
               <p className="text-slate-400 text-sm mt-1">(Additional Charges)</p>
+              {ddpiPaymentDisabled && (
+                <label className="mt-6 flex items-start gap-3 text-left rounded-xl border border-slate-200 bg-slate-50 p-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={ddpiConsentTicked}
+                    onChange={(e) => setDdpiConsentTicked(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-brand-blue-600"
+                  />
+                  <span className="text-sm text-slate-700 leading-relaxed">
+                    Please note that <b>₹{ddpiCharge.toFixed(2)}</b> will be deducted from your ledger for DDPI activation.
+                    Please ensure that sufficient balance is available in your ledger before continuing.
+                  </span>
+                </label>
+              )}
               {ddpiError && <p className="text-sm text-red-600 font-medium mt-4">{ddpiError}</p>}
               <div className="flex justify-center gap-4 mt-8">
                 <button
                   type="button"
-                  onClick={() => { setShowDdpiPopup(false); setDdpiSelection('No'); }}
+                  onClick={() => { setShowDdpiPopup(false); setDdpiConsentGiven(false); setDdpiSelection('No'); }}
                   className="rounded-full border-2 border-brand-blue-600 text-brand-blue-600 font-bold px-10 py-2.5 hover:bg-brand-blue-50 transition-colors"
                 >
                   NO
@@ -224,7 +253,7 @@ export default function OthersTab({ account, onNext }) {
                 <button
                   type="button"
                   onClick={handleDdpiContinue}
-                  disabled={ddpiLoading}
+                  disabled={ddpiLoading || (ddpiPaymentDisabled && !ddpiConsentTicked)}
                   className="rounded-full bg-brand-blue-600 hover:bg-brand-blue-700 disabled:opacity-60 text-white font-bold px-10 py-2.5 transition-colors"
                 >
                   {ddpiLoading ? 'Processing…' : 'Continue'}

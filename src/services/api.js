@@ -64,7 +64,8 @@ export const startNomineeEsign = (clientCode) => api.post(`/client/${clientCode}
 
 export const updateOthers = (clientCode, payload) => api.post(`/client/${clientCode}/others`, payload);
 
-export const updateDdpi = (clientCode) => api.post(`/client/${clientCode}/ddpi`);
+// body.consent = true when DDPI_PAYMENT_DISABLED is on (the client ticked the consent box).
+export const updateDdpi = (clientCode, body) => api.post(`/client/${clientCode}/ddpi`, body);
 
 export const createDdpiPaymentOrder = (clientCode) =>
   api.post(`/client/${clientCode}/ddpi/payment/order`);
