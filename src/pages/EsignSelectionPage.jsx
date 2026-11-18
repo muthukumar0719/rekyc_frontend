@@ -22,6 +22,9 @@ export default function EsignSelectionPage() {
   const [previewUrls, setPreviewUrls] = useState({});
   const [previewErrors, setPreviewErrors] = useState({});
   const [redirectSeconds, setRedirectSeconds] = useState(8);
+  // Operation status as the server sees it now (requirements refresh), so the
+  // thank-you appears as soon as the request is in review.
+  const [liveOperationStatus, setLiveOperationStatus] = useState(null);
 
   const allSigned = requirements.length > 0 && requirements.every((r) => r.status === 'sign_complete');
   const EXTERNAL_REDIRECT_URL = 'https://www.aionioncapital.com/';
@@ -50,6 +53,7 @@ export default function EsignSelectionPage() {
       if (!silent) setLoading(true);
       const res = await api.get(`/client/${clientId}/esign/requirements?operation_id=${operationId}`);
       setRequirements((prev) => (JSON.stringify(prev) === JSON.stringify(res.data.requirements) ? prev : res.data.requirements));
+      if (res.data.operationStatus) setLiveOperationStatus(res.data.operationStatus);
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load eSign requirements');
@@ -247,8 +251,17 @@ export default function EsignSelectionPage() {
   // (e.g. Nominee right after Bank) stay reachable. So: fully done -> show the
   // success screen and hand off to the marketing site; not done yet -> just
   // return to Account Details, where the next unlocked step is now clickable.
-  const operationStatus = account?.operationStatus;
+  const operationStatus = liveOperationStatus || account?.operationStatus;
   const operationFinalized = operationStatus === 'PENDING_VERIFICATION' || operationStatus === 'COMPLETED';
+  // Every form signed but the request not yet in review: keep asking the server
+  // until it moves on (the requirements call finishes the request).
+  useEffect(() => {
+    if (!allSigned || operationFinalized) return;
+    const timer = setInterval(() => fetchRequirements({ silent: true }), 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSigned, operationFinalized]);
+
   useEffect(() => {
     if (!allSigned) return;
     if (!operationFinalized) {
@@ -293,7 +306,7 @@ export default function EsignSelectionPage() {
     return <div className="p-8">Missing operation_id in URL</div>;
   }
 
-  if (allSigned) {
+  if (allSigned && operationFinalized) {
     return (
       <PageShell contentClassName="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="max-w-lg w-full text-center">
@@ -436,7 +449,7 @@ export default function EsignSelectionPage() {
                         {signingForm === req.form_type ? (
                           <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
                         ) : (
-                          <>Proceed to eSign <ArrowRight className="w-4 h-4" /></>
+                          <>{req.status === 'name_mismatch' ? 'Sign again' : 'Proceed to eSign'} <ArrowRight className="w-4 h-4" /></>
                         )}
                       </Button>
                     </div>
