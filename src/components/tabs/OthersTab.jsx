@@ -32,37 +32,46 @@ export default function OthersTab({ account, onNext }) {
   // DDPI_PAYMENT_DISABLED on the backend: no Razorpay; the client ticks a consent box.
   const ddpiPaymentDisabled = Boolean(account.others?.ddpiPaymentDisabled);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Saves the DDPI selection and details. Returns true only when everything saved.
+  const submitDetails = async () => {
     setLoading(true);
     setError('');
     setSaved(false);
-    
+
     // Only a No -> Yes activation ever fires — DDPI can't be turned back off
     // through this form.
-    let ddpiFailed = false;
     if (ddpiSelection === 'Yes' && !ddpiActivated) {
-      ddpiFailed = !(await handleDdpiActivate());
-    }
-
-    // If the DDPI change was actually attempted and failed (e.g. an existing
-    // operation is already awaiting eSign), stop here — don't show "Details
-    // updated." underneath the error, that looked like the whole form
-    // succeeded when the one thing the user asked for didn't.
-    if (ddpiFailed) {
-      setLoading(false);
-      return;
+      const ddpiOk = await handleDdpiActivate();
+      // If the DDPI change was attempted and failed (e.g. an existing operation
+      // is already awaiting eSign), stop here and keep the error on screen.
+      if (!ddpiOk) {
+        setLoading(false);
+        return false;
+      }
     }
 
     try {
       const { data } = await updateOthers(account.clientId, { networth: null });
       updateAccount(data.data);
       setSaved(true);
+      return true;
     } catch (err) {
       setError(err.response?.data?.message || 'Could not update details.');
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await submitDetails();
+  };
+
+  // Submit & Next: move on only when the save succeeded.
+  const handleSubmitAndNext = async () => {
+    const ok = await submitDetails();
+    if (ok && onNext) onNext();
   };
 
   const handleDdpiActivate = async () => {
@@ -189,7 +198,7 @@ export default function OthersTab({ account, onNext }) {
         {error && <p className="md:col-span-3 text-sm text-red-600">{error}</p>}
         {saved && <p className="md:col-span-3 text-sm text-green-600">Details updated.</p>}
 
-        {!isLocked && (
+        {!isLocked && !onNext && (
           <div className="md:col-span-3 mt-4">
             <button
               type="submit"
@@ -201,7 +210,20 @@ export default function OthersTab({ account, onNext }) {
           </div>
         )}
 
-        {onNext && (
+        {!isLocked && onNext && (
+          <div className="md:col-span-3 flex justify-end mt-2 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={handleSubmitAndNext}
+              disabled={loading || ddpiLoading}
+              className="bg-gradient-to-r from-brand-blue-600 to-brand-coral-500 hover:from-brand-blue-500 hover:to-brand-coral-400 disabled:opacity-60 text-white text-sm font-bold uppercase tracking-wider rounded-lg px-6 py-2.5 shadow-[0_4px_14px_0_rgba(30,47,224,0.35)] hover:shadow-[0_6px_20px_rgba(240,64,95,0.3)] hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
+            >
+              {loading ? 'Saving…' : 'Submit & Next'} <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {isLocked && onNext && (
           <div className="md:col-span-3 flex justify-end mt-2 pt-4 border-t border-slate-100">
             <button
               type="button"
