@@ -210,8 +210,14 @@ export default function EsignSelectionPage() {
 
   const handleRefreshStatus = async (formType, silent = false) => {
     try {
-      await api.get(`/client/${clientId}/esign/${formType}/status?operation_id=${operationId}`);
+      const res = await api.get(`/client/${clientId}/esign/${formType}/status?operation_id=${operationId}`);
       await fetchRequirements({ silent });
+      // The signed Aadhaar name did not match the name on record: the server
+      // returns 200 with status 'name_mismatch' and a message. Set it after the
+      // refresh, because fetchRequirements clears the error.
+      if (res.data?.status === 'name_mismatch') {
+        setError(res.data.message || 'The name on your Aadhaar does not match your name on record. Please contact the KYC team before signing again.');
+      }
     } catch (err) {
       if (!silent) setError(err.response?.data?.message || 'Failed to check status');
     }
@@ -374,10 +380,11 @@ export default function EsignSelectionPage() {
                         <span className={`font-medium ${
                           req.status === 'sign_complete' ? 'text-emerald-600' :
                           req.status === 'pending' ? 'text-amber-600' :
-                          req.status === 'failed' ? 'text-red-600' : 'text-slate-600'
+                          req.status === 'failed' || req.status === 'name_mismatch' ? 'text-red-600' : 'text-slate-600'
                         }`}>
                           {req.status === 'sign_complete' ? 'Signed' :
                            req.status === 'pending' ? 'Awaiting Signature / Processing' :
+                           req.status === 'name_mismatch' ? 'Name mismatch: contact KYC team' :
                            req.status === 'failed' ? 'Failed' : 'Not Started'}
                         </span>
                       </div>
