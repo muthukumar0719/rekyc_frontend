@@ -48,8 +48,9 @@ function derivedCompletion(account) {
   const pc = account.personal?.pendingChanges || {};
   const done = {};
 
-  // Personal: the only mandatory field on this step is Annual Income.
-  if (account.others?.annualIncome || pc.annual_income) done.personal = true;
+  // Personal: the only mandatory field on this step is Annual Income, and it
+  // must be saved on this request (it is recorded even when unchanged).
+  if (pc.annual_income) done.personal = true;
 
   // Bank: a bank account was added through the re-KYC flow.
   if (Array.isArray(account.bank) && account.bank.some((b) => b.source === 'rekyc')) done.bank = true;
@@ -154,11 +155,17 @@ export default function AccountDetails() {
     (step) => !(personalGatePending && ['bank', 'nominee', 'others'].includes(step)),
     [personalGatePending]
   );
+  const incomeSaved = !!account?.personal?.pendingChanges?.annual_income;
 
   // Left-side step navigation — the sidebar is now freely clickable, so this
   // just switches the tab directly instead of gating on canAccess(). canAccess
   // itself is unchanged and still drives the Sidebar's "locked" visual style.
   const handleSelect = (step) => {
+    // Annual Income must be saved on the Personal step before the other steps open.
+    if (!incomeSaved && ['bank', 'nominee', 'others', 'document'].includes(step)) {
+      setStepError('Please save your Annual Income on the Personal step first.');
+      return;
+    }
     setActiveTab(step);
   };
 
@@ -190,7 +197,13 @@ export default function AccountDetails() {
               {stepError}
             </div>
           )}
-          <TabComponent account={account} onNext={handleNext} />
+          {account.onlineEligible === false ? (
+            <div role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-4">
+              {`Your account is registered as ${account.categoryDesc || 'not recorded'}. Online Re-KYC is available for Individual and NRI accounts only. Please reach out to your RM or Client Care for the Physical ReKYC process.`}
+            </div>
+          ) : (
+            <TabComponent account={account} onNext={handleNext} />
+          )}
         </div>
       </div>
     </PageShell>
