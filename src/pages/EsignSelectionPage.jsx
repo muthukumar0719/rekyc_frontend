@@ -8,6 +8,9 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import aionionLogo from '../assets/aionion-logo.png';
 
+// Statuses where the signing has started and the portal must keep checking.
+const IN_PROGRESS = new Set(['pending', 'sign_initiated']);
+
 export default function EsignSelectionPage() {
   const { clientId } = useParams();
   const [searchParams] = useSearchParams();
@@ -75,7 +78,7 @@ export default function EsignSelectionPage() {
   // operation, or the user hits "Refresh Status").
   useEffect(() => {
     // A pending form shows no inline preview (only signed/unsigned states do).
-    const toFetch = requirements.filter((req) => req.status !== 'sign_complete' && req.status !== 'pending');
+    const toFetch = requirements.filter((req) => req.status !== 'sign_complete' && !IN_PROGRESS.has(req.status));
     toFetch.forEach(async (req) => {
       // Drop the previous preview (if any) the moment a refresh starts, so
       // the UI falls back to "Loading preview…" instead of ever silently
@@ -234,7 +237,7 @@ export default function EsignSelectionPage() {
   // account via fetchRequirements() above, which clears the gate the moment
   // the server confirms sign_complete).
   useEffect(() => {
-    const pendingForms = requirements.filter((r) => r.status === 'pending');
+    const pendingForms = requirements.filter((r) => IN_PROGRESS.has(r.status));
     if (pendingForms.length === 0) return;
     const interval = setInterval(() => {
       pendingForms.forEach((r) => handleRefreshStatus(r.form_type, true));
@@ -392,11 +395,11 @@ export default function EsignSelectionPage() {
                         <span>Status:</span>
                         <span className={`font-medium ${
                           req.status === 'sign_complete' ? 'text-emerald-600' :
-                          req.status === 'pending' ? 'text-amber-600' :
+                          IN_PROGRESS.has(req.status) ? 'text-amber-600' :
                           req.status === 'failed' || req.status === 'name_mismatch' ? 'text-red-600' : 'text-slate-600'
                         }`}>
                           {req.status === 'sign_complete' ? 'Signed' :
-                           req.status === 'pending' ? 'Awaiting Signature / Processing' :
+                           IN_PROGRESS.has(req.status) ? 'Awaiting Signature / Processing' :
                            req.status === 'name_mismatch' ? 'Name mismatch: contact KYC team' :
                            req.status === 'failed' ? 'Failed' : 'Not Started'}
                         </span>
@@ -408,7 +411,7 @@ export default function EsignSelectionPage() {
                     <Button variant="subtle" size="md" className="flex-1 sm:flex-none" onClick={() => handleDownload(req.form_type)}>
                       <Download className="w-4 h-4" /> Download
                     </Button>
-                  ) : req.status === 'pending' ? (
+                  ) : IN_PROGRESS.has(req.status) ? (
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                       {req.signing_url && (
                         <Button as="a" href={req.signing_url} variant="primary" size="md" className="flex-1 sm:flex-none">
@@ -422,7 +425,7 @@ export default function EsignSelectionPage() {
                   ) : null}
                 </div>
 
-                {req.status !== 'sign_complete' && req.status !== 'pending' && (
+                {req.status !== 'sign_complete' && !IN_PROGRESS.has(req.status) && (
                   <div className="mt-5 pt-5 border-t border-slate-100">
                     {previewUrls[req.form_type] ? (
                       <iframe
